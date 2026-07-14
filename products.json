@@ -9,12 +9,12 @@
     "id": "2",
     "name": "Omega Speedmaster",
     "price": "฿240,000",
-    "image": "https://pendulum.co.th/wp-content/uploads/2025/04/310.30.42.50.04.001-gallery-1.webp"
+    "image": "https://raw.githubusercontent.com/phongpranot20/-Phongpranot_Internet_Programming_870/refs/heads/main/images/product_2.png"
   },
   {
     "id": "3",
     "name": "Seiko Prospex",
     "price": "฿18,500",
-    "image": "https://encrypted-tbn0.gstatic.com/shopping?q=tbn:ANd9GcR5Efa4OF171T66kmJaPrx9WbpcfHUsIpl7NmWa4503VgWtP1_uYaRs-pM4QQG5Z2zQL-FJvccJvW2eCY8zV76OlMpYXCie0kb8ja3itAjH6t16tZqTpOrpcvlotsLLCaBJ-n6ijJ4&usqp=CAc"
+    "image": "https://raw.githubusercontent.com/phongpranot20/-Phongpranot_Internet_Programming_870/refs/heads/main/images/product_3.png"
   }
 ]
