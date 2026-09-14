@@ -1,0 +1,20 @@
+[
+  {
+    "id": "1",
+    "name": "Rolex Submariner",
+    "price": "350,000",
+    "image_url": "https://raw.githubusercontent.com/phongpranot20/Phongpranot_Internet_Programming_870/main/images/product_1.jpg"
+  },
+  {
+    "id": "2",
+    "name": "Omega Speedmaster",
+    "price": "240,000",
+    "image_url": "https://raw.githubusercontent.com/phongpranot20/Phongpranot_Internet_Programming_870/main/images/product_2.jpg"
+  },
+  {
+    "id": "3",
+    "name": "Seiko Prospex",
+    "price": "18,500",
+    "image_url": "https://raw.githubusercontent.com/phongpranot20/Phongpranot_Internet_Programming_870/main/images/product_3.jpg"
+  }
+]
