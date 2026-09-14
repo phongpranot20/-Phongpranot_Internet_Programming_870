@@ -15,10 +15,6 @@ import {
   View,
 } from 'react-native';
 
-// ==========================================
-// 1. CONSTANTS & CONFIGURATIONS
-// ==========================================
-// รายชื่อหมวดหมู่ / แบรนด์นาฬิกาสำหรับใช้สร้างปุ่มแท็กตัวกรอง (Filter Pills)
 const CATEGORIES = [
   'All',
   'Rolex',
@@ -39,7 +35,7 @@ const CATEGORIES = [
   'General',
 ];
 
-// โครงสร้างข้อมูลสถิติของราคาด้วยอัลกอริทึม K-Means
+// ===== Client-Side K-Means 1D Clustering =====
 interface ClusterStats {
   iterations: number;
   low: { centroid: number; count: number; min: number; max: number };
@@ -47,10 +43,6 @@ interface ClusterStats {
   high: { centroid: number; count: number; min: number; max: number };
 }
 
-// ==========================================
-// 2. MACHINE LEARNING: K-MEANS CLUSTERING ALGORITHM
-// ==========================================
-// ฟังก์ชันจัดกลุ่มราคาสินค้าออกเป็น 3 ระดับ (Low, Mid, High) แบบ Unsupervised Learning ฝั่ง Client-side
 const clusterPricesLocally = (data: any[]) => {
   if (!data || data.length === 0) {
     return {
@@ -68,13 +60,11 @@ const clusterPricesLocally = (data: any[]) => {
   const minPrice = Math.min(...prices);
   const maxPrice = Math.max(...prices);
 
-  // กำหนดจุดกึ่งกลางเริ่มต้น (Initial Centroids) 3 กลุ่ม
   let centroids = [minPrice, (minPrice + maxPrice) / 2, maxPrice];
   let assignments: number[] = [];
   let changed = true;
   let iterations = 0;
 
-  // ทำการวนลูปคำนวณระยะห่าง (Euclidean Distance) จนกว่าจุด Centroid จะนิ่ง (Convergence) หรือครบ 100 รอบ
   while (changed && iterations < 100) {
     changed = false;
     iterations++;
@@ -100,7 +90,6 @@ const clusterPricesLocally = (data: any[]) => {
   const sortedCentroids = [...centroids].sort((a, b) => a - b);
   const tierLabels = ['Low', 'Mid', 'High'];
 
-  // ผูกระดับราคา (Price Tier) เข้ากับข้อมูลสินค้าแต่ละชิ้น
   const clusteredData = data.map((item, index) => {
     const myCentroid = centroids[assignments[index]];
     const tierIndex = sortedCentroids.indexOf(myCentroid);
@@ -133,19 +122,14 @@ const clusterPricesLocally = (data: any[]) => {
   };
 };
 
-// ==========================================
-// 3. MAIN APPLICATION COMPONENT
-// ==========================================
 export default function App() {
-  // State ควบคุมการสลับหน้าจอระหว่างแท็บ 'home' และ 'products'
-  const [activeTab, setActiveTab] = useState<'home' | 'products'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'products' | 'history'>('home');
 
-  // ตัวแปรเก็บข้อมูลสำหรับแสดงผลหน้า Home อย่างอิสระ
   const HOME_SHOWCASE_IMAGE = 'https://i.ibb.co/JFMCtxwW/Chat-GPT-Image-12-2569-03-04-44.png';
   const HOME_SHOWCASE_TITLE = '                      Our Speacial Product';
-  const HOME_SHOWCASE_DESC = '             masterpiece of exquisite  curated for the true collector.';
+  const HOME_SHOWCASE_DESC = '            masterpiece of exquisite  curated for the true collector.';
 
-  // State สำหรับระบบ Authentication (เข้าสู่ระบบ / สมัครสมาชิก)
+  // Auth State
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('admin');
@@ -154,28 +138,37 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  // State เก็บข้อมูล Session ของผู้ใช้งานปัจจุบัน
+  // User Session
   const [userName, setUserName] = useState<string>('Tar');
   const [userRole, setUserRole] = useState<string>('user');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  // State สำหรับจัดการรายการสินค้าและระบบค้นหา/กรอง
+  // Shop Catalogue & History
   const [products, setProducts] = useState<any[]>([]);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // State สำหรับควบคุม Modal ต่างๆ (เช่น ML Stats, Quick View, เพิ่ม/แก้ไขสินค้า)
+  // Modals
   const [mlModalVisible, setMlModalVisible] = useState(false);
   const [mlStats, setMlStats] = useState<ClusterStats | null>(null);
   const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
 
+  // Delivery & Shipping Modal State
+  const [deliveryModalVisible, setDeliveryModalVisible] = useState(false);
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [shippingMethod, setShippingMethod] = useState('Standard Delivery');
+  const [trackingResult, setTrackingResult] = useState<any | null>(null);
+
+  // Admin Add & Edit Modals
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // State สำหรับฟอร์มกรอกข้อมูลสินค้า (Admin)
+  // Admin Form State
   const [formId, setFormId] = useState<number | null>(null);
   const [formName, setFormName] = useState('');
   const [formPrice, setFormPrice] = useState('');
@@ -184,7 +177,6 @@ export default function App() {
 
   const isAdmin = userRole === 'admin';
 
-  // ตรวจสอบ Session ที่บันทึกไว้ในเครื่องผ่าน AsyncStorage เมื่อเปิดแอป
   useEffect(() => {
     const checkSession = async () => {
       const storedToken = await AsyncStorage.getItem('auth_token');
@@ -196,12 +188,12 @@ export default function App() {
         setUserName(storedName);
         if (storedRole) setUserRole(storedRole);
         fetchCatalogue();
+        fetchOrderHistory();
       }
     };
     checkSession();
   }, []);
 
-  // ฟังก์ชันดึงข้อมูลสินค้าจาก Backend API
   const fetchCatalogue = async () => {
     setLoading(true);
     try {
@@ -220,16 +212,21 @@ export default function App() {
     }
   };
 
-  // ฟังก์ชันรีเฟรชข้อมูลสินค้า (Pull-to-Refresh)
+  const fetchOrderHistory = async () => {
+    try {
+      const data = await apiCall('/orders');
+      if (Array.isArray(data)) {
+        setOrderHistory(data);
+      }
+    } catch (err) {
+      console.error('Order History Fetch Error:', err);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      const data = await apiCall('/products');
-      if (Array.isArray(data)) {
-        const { clusteredData, stats } = clusterPricesLocally(data);
-        setProducts(clusteredData);
-        setMlStats(stats);
-      }
+      await Promise.all([fetchCatalogue(), fetchOrderHistory()]);
     } catch (err) {
       console.error('Refresh Error:', err);
     } finally {
@@ -237,7 +234,6 @@ export default function App() {
     }
   };
 
-  // ฟังก์ชันจัดการการเข้าสู่ระบบ (Sign In)
   const handleSignIn = async () => {
     if (!username.trim() || !password.trim()) {
       setAuthError('Please enter username and password.');
@@ -265,6 +261,7 @@ export default function App() {
       setUserRole(role);
       setIsLoggedIn(true);
       fetchCatalogue();
+      fetchOrderHistory();
     } catch (err: any) {
       if (username === 'admin' || username === 'user') {
         const role = username === 'admin' ? 'admin' : 'user';
@@ -276,6 +273,7 @@ export default function App() {
         setUserRole(role);
         setIsLoggedIn(true);
         fetchCatalogue();
+        fetchOrderHistory();
       } else {
         setAuthError(err.message || 'Invalid credentials.');
       }
@@ -284,7 +282,6 @@ export default function App() {
     }
   };
 
-  // ฟังก์ชันจัดการสมัครสมาชิก (Sign Up)
   const handleSignUp = async () => {
     if (!username.trim() || !password.trim()) {
       setAuthError('Please fill in all registration fields.');
@@ -314,6 +311,7 @@ export default function App() {
       setUserRole('user');
       setIsLoggedIn(true);
       fetchCatalogue();
+      fetchOrderHistory();
     } catch (err: any) {
       window.alert('สมัครสมาชิกสำเร็จเรียบร้อย!');
       await AsyncStorage.setItem('auth_token', 'local_user_token');
@@ -324,12 +322,12 @@ export default function App() {
       setUserRole('user');
       setIsLoggedIn(true);
       fetchCatalogue();
+      fetchOrderHistory();
     } finally {
       setAuthLoading(false);
     }
   };
 
-  // ฟังก์ชันออกจากระบบ (Sign Out)
   const handleLogout = async () => {
     await AsyncStorage.removeItem('auth_token');
     await AsyncStorage.removeItem('user_role');
@@ -339,7 +337,6 @@ export default function App() {
     setAuthMode('signin');
   };
 
-  // ฟังก์ชันอัปโหลดและบีบอัดภาพสินค้าจากเครื่องผ่าน HTML File Input & Canvas
   const handleLocalImageUpload = (e: any) => {
     const file = e.target?.files?.[0];
     if (!file) return;
@@ -379,7 +376,6 @@ export default function App() {
     reader.readAsDataURL(file);
   };
 
-  // รีเซ็ตค่าในฟอร์มเพิ่ม/แก้ไขสินค้า
   const resetForm = () => {
     setFormId(null);
     setFormName('');
@@ -388,7 +384,6 @@ export default function App() {
     setFormImageUrl('');
   };
 
-  // ฟังก์ชันเพิ่มสินค้าใหม่ลงฐานข้อมูล (Admin)
   const handleCreateProduct = async () => {
     const numericPrice = parseFloat(formPrice);
     const numericQty = parseInt(formQuantity, 10) || 1;
@@ -422,7 +417,6 @@ export default function App() {
     }
   };
 
-  // เปิด Modal แก้ไขข้อมูลสินค้า
   const handleOpenEdit = (item: any) => {
     setFormId(item.id);
     setFormName(item.name || '');
@@ -432,7 +426,6 @@ export default function App() {
     setEditModalVisible(true);
   };
 
-  // ฟังก์ชันอัปเดตข้อมูลสินค้า (Admin)
   const handleUpdateProduct = async () => {
     const numericPrice = parseFloat(formPrice);
     const numericQty = parseInt(formQuantity, 10) || 1;
@@ -466,7 +459,6 @@ export default function App() {
     }
   };
 
-  // ฟังก์ชันลบสินค้าออกจากฐานข้อมูล (Admin)
   const handleDeleteProduct = async (id: number, name: string) => {
     if (!window.confirm(`Decommission timepiece "${name}" from inventory?`)) return;
 
@@ -484,38 +476,95 @@ export default function App() {
     }
   };
 
-  // ฟังก์ชันจำลองการซื้อสินค้า
-  const handleBuyNow = (product: any) => {
-    window.alert(
-      `Reservation Confirmed: "${product.name}"\nYour Swiss Concierge will arrange escrow delivery.`
-    );
-    setSelectedProduct(null);
+  const handleProceedToCheckout = (product: any) => {
+    setSelectedProduct(product);
+    setDeliveryModalVisible(true);
+    setTrackingResult(null);
   };
 
-  // ==========================================
-  // 4. COMPUTED: SEARCH & CATEGORY FILTER
-  // ==========================================
-  // ใช้ useMemo กรองรายการสินค้าตามคำค้นหา (ชื่อ, หมวดหมู่, ราคา) และแท็กแบรนด์ที่เลือก
+  // ยืนยันคำสั่งซื้อ ตัดสต็อกสินค้า และบันทึกประวัติลง Database (MySQL)
+  const handleConfirmShipping = async () => {
+    if (!shippingAddress.trim() || !recipientPhone.trim()) {
+      window.alert('กรุณากรอกที่อยู่จัดส่งและเบอร์โทรศัพท์ให้ครบถ้วน');
+      return;
+    }
+
+    try {
+      const currentQty = parseInt(selectedProduct?.quantity, 10) || 1;
+      const updatedQty = Math.max(0, currentQty - 1);
+
+      // 1. ตัดสต็อกสินค้าใน MySQL
+      await apiCall(`/products/${selectedProduct.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: selectedProduct.name,
+          price: selectedProduct.price,
+          quantity: updatedQty,
+          image_url: selectedProduct.image_url || '',
+        }),
+      });
+
+      const trackingNo = `CHRONOS-LOGISTICS-${Math.floor(100000 + Math.random() * 900000)}`;
+      const currentDate = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' });
+
+      // 2. บันทึกประวัติการสั่งซื้อลง Database (MySQL) ผ่าน API
+      await apiCall('/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          username: userName,
+          product_name: selectedProduct.name,
+          price: selectedProduct.price,
+          image_url: selectedProduct.image_url || '',
+          tracking_no: trackingNo,
+          shipping_address: shippingAddress,
+          recipient_phone: recipientPhone,
+          shipping_method: shippingMethod,
+          order_date: currentDate,
+        }),
+      });
+
+      setTrackingResult({
+        trackingNo,
+        address: shippingAddress,
+        phone: recipientPhone,
+        method: shippingMethod,
+        date: currentDate,
+      });
+
+      // รีเฟรชข้อมูลสินค้าและประวัติการสั่งซื้อ
+      fetchCatalogue();
+      fetchOrderHistory();
+
+    } catch (err: any) {
+      window.alert(err.message || 'ไม่สามารถบันทึกคำสั่งซื้อลงฐานข้อมูลได้');
+    }
+  };
+
+  // ระบบค้นหาและกรองแบรนด์
   const filteredProducts = useMemo(() => {
     return products.filter((item) => {
       const query = searchQuery.toLowerCase().trim();
       const priceStr = item.price ? String(item.price) : '';
+      const itemName = item.name?.toLowerCase() || '';
 
       const matchesSearch =
-        item.name?.toLowerCase().includes(query) ||
+        itemName.includes(query) ||
         item.category?.toLowerCase().includes(query) ||
         priceStr.includes(query);
 
-      const matchesCategory =
-        selectedCategory === 'All' ||
-        item.name?.toLowerCase().includes(selectedCategory.toLowerCase()) ||
-        item.category?.toLowerCase() === selectedCategory.toLowerCase();
+      let matchesCategory = true;
+      if (selectedCategory !== 'All') {
+        const cat = selectedCategory.toLowerCase();
+        const cleanItemName = itemName.replace(/\s+/g, '');
+        const cleanCat = cat.replace(/\s+/g, '');
+        
+        matchesCategory = itemName.includes(cat) || cleanItemName.includes(cleanCat);
+      }
 
       return matchesSearch && matchesCategory;
     });
   }, [products, searchQuery, selectedCategory]);
 
-  // หากยังไม่ได้เข้าสู่ระบบ ให้แสดงหน้าจอ Login / Register
   if (!isLoggedIn) {
     return (
       <View style={styles.ambientDesktop}>
@@ -620,13 +669,10 @@ export default function App() {
     );
   }
 
-  // ==========================================
-  // 5. RENDER: MAIN APPLICATION INTERFACE
-  // ==========================================
   return (
     <View style={styles.ambientDesktop}>
       <View style={styles.phoneFrame}>
-        {/* Header Bar แสดงชื่อผู้ใช้งานและปุ่มโปรไฟล์ */}
+        {/* Header Bar */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greetingText}>Welcome, {userName}</Text>
@@ -648,7 +694,7 @@ export default function App() {
           </Pressable>
         </View>
 
-        {/* Profile Dropdown เมนูออกจากระบบ */}
+        {/* Profile Dropdown */}
         {showProfileMenu && (
           <View style={styles.profileDropdown}>
             <Text style={styles.dropdownName}>{userName}</Text>
@@ -660,7 +706,7 @@ export default function App() {
           </View>
         )}
 
-        {/* ---------------- TAB 1: HOME PAGE ---------------- */}
+        {/* TAB 1: HOME PAGE */}
         {activeTab === 'home' && (
           <ScrollView
             style={{ flex: 1 }}
@@ -675,7 +721,6 @@ export default function App() {
               />
             }
           >
-            {/* Atelier Hero Banner */}
             <View style={styles.homeHeroBanner}>
               <Text style={styles.homeHeroPreTitle}>LUXURY WATCH COLLECTION</Text>
               <Text style={styles.homeHeroTitle}>Chronos Watch Salon</Text>
@@ -690,7 +735,6 @@ export default function App() {
               </Pressable>
             </View>
 
-            {/* Inventory Metric Cards สถิติภาพรวม */}
             <View style={styles.homeStatsRow}>
               <View style={styles.homeStatBox}>
                 <Text style={styles.homeStatNumeral}>{products.length}</Text>
@@ -706,7 +750,6 @@ export default function App() {
               </View>
             </View>
 
-            {/* Featured Masterpiece การ์ดแสดงสินค้าไฮไลต์หน้าแรก */}
             <View style={styles.featuredSection}>
               <View style={styles.featuredSectionHead}>
                 <Text style={styles.featuredSectionTitle}>FEATURED MASTERPIECE</Text>
@@ -726,9 +769,7 @@ export default function App() {
 
                 <View style={styles.featuredCardBody}>
                   <Text style={styles.featuredWatchName}>{HOME_SHOWCASE_TITLE}</Text>
-                  <Text style={styles.featuredWatchSub}>
-                    {HOME_SHOWCASE_DESC}
-                  </Text>
+                  <Text style={styles.featuredWatchSub}>{HOME_SHOWCASE_DESC}</Text>
 
                   <Pressable
                     style={styles.featuredActionBtn}
@@ -742,10 +783,9 @@ export default function App() {
           </ScrollView>
         )}
 
-        {/* ---------------- TAB 2: PRODUCTS PAGE ---------------- */}
+        {/* TAB 2: PRODUCTS PAGE */}
         {activeTab === 'products' && (
           <View style={{ flex: 1 }}>
-            {/* Search Bar ช่องค้นหาสินค้า */}
             <View style={styles.searchBarWrapper}>
               <View style={styles.searchInputContainer}>
                 <Text style={styles.searchGlyph}>⚲</Text>
@@ -764,7 +804,7 @@ export default function App() {
               </View>
             </View>
 
-            {/* Brand Filter Pills แถบเลื่อนแนวนอน (Horizontal Scroll) แสดงแท็กแบรนด์ทั้งหมด */}
+            {/* Brand Filter Pills */}
             <View style={styles.filterSection}>
               <ScrollView
                 horizontal
@@ -789,7 +829,6 @@ export default function App() {
               </ScrollView>
             </View>
 
-            {/* Product Grid แสดงรายการสินค้าแบบตาราง 2 คอลัมน์ */}
             {loading && !refreshing ? (
               <ActivityIndicator size="small" color="#A8842C" style={{ marginTop: 80 }} />
             ) : (
@@ -874,7 +913,7 @@ export default function App() {
                             style={styles.buyNowButton}
                             onPress={(e) => {
                               e.stopPropagation();
-                              handleBuyNow(item);
+                              handleProceedToCheckout(item);
                             }}
                           >
                             <Text style={styles.buyNowButtonText}>Buy Now</Text>
@@ -902,10 +941,64 @@ export default function App() {
           </View>
         )}
 
-        {/* ---------------- 6. MODALS (หน้าต่างป๊อปอัปต่างๆ) ---------------- */}
-        
-        {/* Modal: Product Quick View (ดูรายละเอียดสินค้าแบบเจาะลึก) */}
-        <Modal visible={!!selectedProduct} transparent animationType="fade">
+        {/* TAB 3: ORDER HISTORY PAGE (จาก Database) */}
+        {activeTab === 'history' && (
+          <View style={{ flex: 1 }}>
+            <View style={styles.historyHeaderContainer}>
+              <Text style={styles.historyHeaderTitle}>Order History</Text>
+              <Text style={styles.historyHeaderSub}>ประวัติการสั่งซื้อจากฐานข้อมูล</Text>
+            </View>
+
+            <FlatList
+              data={orderHistory}
+              keyExtractor={(item) => item.id?.toString() || Math.random().toString()}
+              contentContainerStyle={styles.historyListContent}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#A8842C" />
+              }
+              renderItem={({ item }) => (
+                <View style={styles.historyCard}>
+                  <View style={styles.historyCardTop}>
+                    <Text style={styles.historyDateText}>{item.order_date}</Text>
+                    <View style={styles.historyStatusBadge}>
+                      <Text style={styles.historyStatusText}>Shipped</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.historyCardMain}>
+                    <View style={styles.historyThumbBox}>
+                      {item.image_url ? (
+                        <Image source={{ uri: item.image_url }} style={styles.historyImage} resizeMode="cover" />
+                      ) : (
+                        <Text style={styles.emptyWatchGlyph}>◷</Text>
+                      )}
+                    </View>
+                    <View style={styles.historyInfoCol}>
+                      <Text style={styles.historyProductName} numberOfLines={2}>{item.product_name}</Text>
+                      <Text style={styles.historyProductPrice}>฿{Number(item.price).toLocaleString()}</Text>
+                      <Text style={styles.historyTrackingText}>Tracking: {item.tracking_no}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.historyCardBottom}>
+                    <Text style={styles.historyDetailText}>วิธีส่ง: {item.shipping_method}</Text>
+                    <Text style={styles.historyDetailText} numberOfLines={1}>ปลายทาง: {item.shipping_address} ({item.recipient_phone})</Text>
+                  </View>
+                </View>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyHistoryBox}>
+                  <Text style={styles.emptyHistoryGlyph}>📦</Text>
+                  <Text style={styles.emptyHistoryTitle}>ยังไม่มีประวัติการสั่งซื้อ</Text>
+                  <Text style={styles.emptyHistorySub}>เมื่อคุณทำรายการสั่งซื้อ ประวัติจะบันทึกลงฐานข้อมูลทันที</Text>
+                </View>
+              }
+            />
+          </View>
+        )}
+
+        {/* Modal: Product Quick View */}
+        <Modal visible={!!selectedProduct && !deliveryModalVisible} transparent animationType="fade">
           <View style={styles.modalBackdrop}>
             <View style={styles.showroomModalBox}>
               <Pressable
@@ -963,9 +1056,9 @@ export default function App() {
                 ) : (
                   <Pressable
                     style={styles.modalReserveBtn}
-                    onPress={() => handleBuyNow(selectedProduct)}
+                    onPress={() => handleProceedToCheckout(selectedProduct)}
                   >
-                    <Text style={styles.modalReserveBtnText}>Reserve Timepiece</Text>
+                    <Text style={styles.modalReserveBtnText}>Proceed to Checkout & Shipping</Text>
                   </Pressable>
                 )}
               </View>
@@ -973,7 +1066,102 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* Modal: Admin Add Timepiece (ฟอร์มเพิ่มสินค้าใหม่) */}
+        {/* Modal: Checkout & Shipping Details */}
+        <Modal visible={deliveryModalVisible} transparent animationType="slide">
+          <View style={styles.modalBackdrop}>
+            <View style={styles.adminModalBox}>
+              <Text style={styles.adminModalTitle}>Secure Logistics & Delivery</Text>
+              <Text style={styles.adminModalSub}>
+                {trackingResult ? 'คำสั่งซื้อและบริการขนส่งสำเร็จ' : 'กรอกข้อมูลการจัดส่งเรือนเวลาของคุณ'}
+              </Text>
+
+              {!trackingResult ? (
+                <>
+                  <View style={styles.checkoutSummaryBox}>
+                    <Text style={styles.checkoutItemName} numberOfLines={1}>{selectedProduct?.name}</Text>
+                    <Text style={styles.checkoutItemPrice}>฿{Number(selectedProduct?.price || 0).toLocaleString()}</Text>
+                  </View>
+
+                  <TextInput
+                    placeholder="ที่อยู่จัดส่งปลายทาง (บ้าน / คอนโด)"
+                    placeholderTextColor="#8A8478"
+                    value={shippingAddress}
+                    onChangeText={setShippingAddress}
+                    style={styles.adminInputField}
+                  />
+                  <TextInput
+                    placeholder="เบอร์โทรศัพท์ผู้รับ (Mobile Phone)"
+                    placeholderTextColor="#8A8478"
+                    value={recipientPhone}
+                    onChangeText={setRecipientPhone}
+                    keyboardType="phone-pad"
+                    style={styles.adminInputField}
+                  />
+
+                  <Text style={[styles.inputLabel, { marginTop: 4 }]}>เลือกรูปแบบการจัดส่ง (DELIVERY SERVICE)</Text>
+                  <View style={styles.shippingMethodRow}>
+                    <Pressable
+                      style={[styles.shippingOptionBtn, shippingMethod === 'Standard Delivery' && styles.shippingOptionActive]}
+                      onPress={() => setShippingMethod('Standard Delivery')}
+                    >
+                      <Text style={[styles.shippingOptionText, shippingMethod === 'Standard Delivery' && styles.shippingTextActive]}>
+                        (Standard Delivery)
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.shippingOptionBtn, shippingMethod === 'Express Delivery' && styles.shippingOptionActive]}
+                      onPress={() => setShippingMethod('Express Delivery')}
+                    >
+                      <Text style={[styles.shippingOptionText, shippingMethod === 'Express Delivery' && styles.shippingTextActive]}>
+                        (Express Delivery)
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.adminModalBtnRow}>
+                    <Pressable
+                      style={[styles.adminModalBtn, styles.adminCancelBtn]}
+                      onPress={() => {
+                        setDeliveryModalVisible(false);
+                        setSelectedProduct(null);
+                      }}
+                    >
+                      <Text style={styles.adminCancelBtnText}>Cancel</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.adminModalBtn, styles.adminSaveBtn]}
+                      onPress={handleConfirmShipping}
+                    >
+                      <Text style={styles.adminSaveBtnText}>ยืนยันการจัดส่ง</Text>
+                    </Pressable>
+                  </View>
+                </>
+              ) : (
+                <View style={styles.trackingResultBox}>
+                  <Text style={styles.trackingTitle}>📦 ข้อมูลการจัดส่งสำเร็จ</Text>
+                  <Text style={styles.trackingNoText}>Tracking: {trackingResult.trackingNo}</Text>
+                  <Text style={styles.trackingDetail}>วิธีส่ง: {trackingResult.method}</Text>
+                  <Text style={styles.trackingDetail}>ปลายทาง: {trackingResult.address}</Text>
+                  <Text style={styles.trackingDetail}>เบอร์ติดต่อ: {trackingResult.phone}</Text>
+                  <Text style={styles.trackingSub}>เจ้าหน้าที่กำลังเตรียมแพ็คนาฬิกาด้วยระบบรักษาความปลอดภัยสูงสุด</Text>
+
+                  <Pressable
+                    style={styles.successActionBtn}
+                    onPress={() => {
+                      setDeliveryModalVisible(false);
+                      setSelectedProduct(null);
+                      setTrackingResult(null);
+                    }}
+                  >
+                    <Text style={styles.successActionBtnText}>Success</Text>
+                  </Pressable>
+                </View>
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Modal: Admin Add Timepiece */}
         <Modal visible={addModalVisible} transparent animationType="slide">
           <View style={styles.modalBackdrop}>
             <View style={styles.adminModalBox}>
@@ -1055,7 +1243,7 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* Modal: Admin Edit Timepiece (ฟอร์มแก้ไขข้อมูลสินค้า) */}
+        {/* Modal: Admin Edit Timepiece */}
         <Modal visible={editModalVisible} transparent animationType="slide">
           <View style={styles.modalBackdrop}>
             <View style={styles.adminModalBox}>
@@ -1137,7 +1325,7 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* Modal: ML Stats Dashboard (แสดงผลวิเคราะห์คลัสเตอร์ราคาด้วย K-Means) */}
+        {/* Modal: ML Stats Dashboard */}
         <Modal visible={mlModalVisible} transparent animationType="slide">
           <View style={styles.modalBackdrop}>
             <View style={styles.showroomModalBox}>
@@ -1205,8 +1393,7 @@ export default function App() {
           </View>
         </Modal>
 
-        {/* ---------------- 7. BOTTOM NAVIGATION ---------------- */}
-        {/* แถบนำทางด้านล่างสำหรับการสลับหน้าจอและเมนูผู้ดูแลระบบ */}
+        {/* Bottom Navigation */}
         <View style={styles.bottomNav}>
           {/* Home Button */}
           <Pressable
@@ -1217,7 +1404,7 @@ export default function App() {
             <Text style={[styles.navLabel, activeTab === 'home' && styles.navLabelActive]}>Home</Text>
           </Pressable>
 
-          {/* Add Button (เฉพาะ Admin เท่านั้น) */}
+          {/* Add Button (Admin Only) */}
           {isAdmin && (
             <Pressable
               style={styles.bottomNavItem}
@@ -1240,7 +1427,16 @@ export default function App() {
             <Text style={[styles.navLabel, activeTab === 'products' && styles.navLabelActive]}>Products</Text>
           </Pressable>
 
-          {/* ML Stats Button (เฉพาะ Admin เท่านั้น) */}
+          {/* History Button */}
+          <Pressable
+            style={styles.bottomNavItem}
+            onPress={() => setActiveTab('history')}
+          >
+            <Text style={[styles.navGlyph, activeTab === 'history' && styles.navGlyphActive]}>📋</Text>
+            <Text style={[styles.navLabel, activeTab === 'history' && styles.navLabelActive]}>History</Text>
+          </Pressable>
+
+          {/* ML Stats Button (Admin Only) */}
           {isAdmin && (
             <Pressable style={styles.bottomNavItem} onPress={() => setMlModalVisible(true)}>
               <Text style={styles.navGlyph}>⚲</Text>
@@ -1253,9 +1449,6 @@ export default function App() {
   );
 }
 
-// ==========================================
-// 8. STYLESHEET (ตกแต่งดีไซน์สไตล์ Luxury)
-// ==========================================
 const styles = StyleSheet.create({
   ambientDesktop: {
     flex: 1,
@@ -1693,7 +1886,7 @@ const styles = StyleSheet.create({
   filterScroll: {
     paddingHorizontal: 16,
     gap: 8,
-    overflowX: 'scroll' as any, // บังคับให้แสดง Scrollbar แนวนอนบนเบราว์เซอร์
+    overflowX: 'scroll' as any,
   },
   filterPill: {
     paddingHorizontal: 14,
@@ -1855,6 +2048,149 @@ const styles = StyleSheet.create({
     color: '#8A8478',
     fontSize: 12,
     fontFamily: 'Inter, Manrope, sans-serif',
+  },
+
+  // ===== Order History Styles =====
+  historyHeaderContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderColor: '#E8E6E0',
+    backgroundColor: '#FFFFFF',
+  },
+  historyHeaderTitle: {
+    fontSize: 18,
+    fontFamily: 'Playfair Display, serif',
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  historyHeaderSub: {
+    fontSize: 11,
+    fontFamily: 'Inter, sans-serif',
+    color: '#8A8478',
+    marginTop: 2,
+  },
+  historyListContent: {
+    padding: 16,
+    paddingBottom: 30,
+  },
+  historyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E6E0',
+    padding: 12,
+    marginBottom: 12,
+  },
+  historyCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderColor: '#F5F4F0',
+  },
+  historyDateText: {
+    fontSize: 11,
+    fontFamily: 'Inter, sans-serif',
+    color: '#8A8478',
+  },
+  historyStatusBadge: {
+    backgroundColor: '#ECFDF5',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  historyStatusText: {
+    fontSize: 9,
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: '700',
+    color: '#059669',
+    textTransform: 'uppercase',
+  },
+  historyCardMain: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  historyThumbBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 6,
+    backgroundColor: '#F5F4F0',
+    borderWidth: 1,
+    borderColor: '#E8E6E0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  historyImage: {
+    width: '100%',
+    height: '100%',
+  },
+  historyInfoCol: {
+    flex: 1,
+  },
+  historyProductName: {
+    fontSize: 13,
+    fontFamily: 'Playfair Display, serif',
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  historyProductPrice: {
+    fontSize: 13,
+    fontFamily: 'Playfair Display, serif',
+    fontWeight: '600',
+    color: '#A8842C',
+    marginTop: 2,
+  },
+  historyTrackingText: {
+    fontSize: 10,
+    fontFamily: 'Inter, sans-serif',
+    color: '#666666',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  historyCardBottom: {
+    backgroundColor: '#FAF9F6',
+    padding: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E8E6E0',
+  },
+  historyDetailText: {
+    fontSize: 10,
+    fontFamily: 'Inter, sans-serif',
+    color: '#666666',
+    marginBottom: 1,
+  },
+  emptyHistoryBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 80,
+    paddingHorizontal: 20,
+  },
+  emptyHistoryGlyph: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  emptyHistoryTitle: {
+    fontSize: 15,
+    fontFamily: 'Playfair Display, serif',
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginBottom: 4,
+  },
+  emptyHistorySub: {
+    fontSize: 11,
+    fontFamily: 'Inter, sans-serif',
+    color: '#8A8478',
+    textAlign: 'center',
   },
 
   // ===== Modals Styles =====
@@ -2061,6 +2397,116 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter, Manrope, sans-serif',
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  checkoutSummaryBox: {
+    backgroundColor: '#FAF9F6',
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E8E6E0',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  checkoutItemName: {
+    fontSize: 12,
+    fontFamily: 'Playfair Display, serif',
+    fontWeight: '600',
+    color: '#1A1A1A',
+    flex: 1,
+  },
+  checkoutItemPrice: {
+    fontSize: 12,
+    fontFamily: 'Playfair Display, serif',
+    fontWeight: '600',
+    color: '#A8842C',
+  },
+  shippingMethodRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
+  shippingOptionBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderRadius: 6,
+    backgroundColor: '#FAF9F6',
+    borderWidth: 1,
+    borderColor: '#E8E6E0',
+    alignItems: 'center',
+    cursor: 'pointer' as any,
+  },
+  shippingOptionActive: {
+    backgroundColor: '#1A1A1A',
+    borderColor: '#1A1A1A',
+  },
+  shippingOptionText: {
+    fontSize: 10,
+    fontFamily: 'Inter, sans-serif',
+    color: '#8A8478',
+    fontWeight: '600',
+  },
+  shippingTextActive: {
+    color: '#FFFFFF',
+  },
+  trackingResultBox: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    width: '100%',
+  },
+  trackingTitle: {
+    fontSize: 15,
+    fontFamily: 'Playfair Display, serif',
+    fontWeight: '700',
+    color: '#10B981',
+    marginBottom: 6,
+  },
+  trackingNoText: {
+    fontSize: 13,
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: '700',
+    color: '#1A1A1A',
+    backgroundColor: '#F5F4F0',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 4,
+    marginBottom: 10,
+  },
+  trackingDetail: {
+    fontSize: 11,
+    fontFamily: 'Inter, sans-serif',
+    color: '#666666',
+    marginBottom: 2,
+    textAlign: 'center',
+  },
+  trackingSub: {
+    fontSize: 10,
+    fontFamily: 'Inter, sans-serif',
+    color: '#8A8478',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 14,
+  },
+  successActionBtn: {
+    width: '100%',
+    height: 46,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 16,
+    cursor: 'pointer' as any,
+    borderWidth: 1,
+    borderColor: '#A8842C',
+  },
+  successActionBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'Inter, sans-serif',
+    fontWeight: '600',
+    letterSpacing: 0.8,
   },
   mlModalTopBar: {
     flexDirection: 'row',

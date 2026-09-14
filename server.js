@@ -111,6 +111,58 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// ===== Orders API (ประวัติการสั่งซื้อ) =====
+app.get('/api/orders', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM orders ORDER BY id DESC');
+    res.json(rows);
+  } catch (e) {
+    console.error('Fetch Orders Error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch orders' });
+  }
+});
+
+app.post('/api/orders', async (req, res) => {
+  try {
+    const {
+      username,
+      product_name,
+      price,
+      image_url,
+      tracking_no,
+      shipping_address,
+      recipient_phone,
+      shipping_method,
+      order_date
+    } = req.body;
+
+    if (!product_name || !tracking_no) {
+      return res.status(400).json({ error: 'Product name and tracking number are required' });
+    }
+
+    const [result] = await pool.query(
+      `INSERT INTO orders (username, product_name, price, image_url, tracking_no, shipping_address, recipient_phone, shipping_method, order_date) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        username || 'Guest',
+        product_name,
+        price || 0,
+        image_url || '',
+        tracking_no,
+        shipping_address || '',
+        recipient_phone || '',
+        shipping_method || '',
+        order_date || ''
+      ]
+    );
+
+    res.status(201).json({ success: true, orderId: result.insertId });
+  } catch (e) {
+    console.error('Create Order Error:', e.message);
+    res.status(500).json({ error: 'Failed to create order: ' + e.message });
+  }
+});
+
 // ===== Products API =====
 app.get('/api/products', async (req, res) => {
   try {
