@@ -1,16 +1,18 @@
-require('dotenv').config();
-const express = require('express');
-const cors = require('cors');
-const mysql = require('mysql2/promise');
-const bcrypt = require('bcrypt'); // 1. เพิ่มไลบรารีสำหรับเข้ารหัสรหัสผ่าน
+require('dotenv').config(); // โหลดค่าตัวแปรแวดล้อม (Environment Variables) จากไฟล์ .env เข้าสู่ process.env
+const express = require('express'); // นำเข้าไลบรารี Express สำหรับสร้างเว็บเซิร์ฟเวอร์และจัดการ Routing
+const cors = require('cors'); // นำเข้าไลบรารี CORS เพื่ออนุญาตให้โดเมนอื่นสามารถเรียกใช้งาน API นี้ได้
+const mysql = require('mysql2/promise'); // นำเข้า MySQL2 แบบ Promise-based เพื่อใช้จัดการฐานข้อมูลแบบ async/await
+const bcrypt = require('bcrypt'); // 1. เพิ่มไลบรารีสำหรับเข้ารหัสรหัสผ่าน (Hashing) และตรวจสอบรหัสผ่าน
 
 const app = express();
-const port = process.env.PORT || 3089;
+const port = process.env.PORT || 3089; // กำหนดพอร์ตจาก .env หรือใช้ค่าเริ่มต้น 3089
 
-app.use(cors());
-app.use(express.json({ limit: '10mb' })); // รองรับรูป base64 ขนาดใหญ่ขึ้น
+app.use(cors()); // เปิดใช้งาน CORS Middleware สำหรับทุก Request
+app.use(express.json({ limit: '10mb' })); // ตั้งค่าให้ Express รองรับ JSON Body และขยายขนาดรับข้อมูล (เช่น รูปภาพ Base64) ได้สูงสุด 10MB
 
-// MySQL Connection
+// ==========================================
+// ส่วนที่ 1: การเชื่อมต่อฐานข้อมูล MySQL (MySQL Connection Pool)
+// ==========================================
 const pool = mysql.createPool({
   host: process.env.DB_HOST === 'localhost' ? '127.0.0.1' : (process.env.DB_HOST || '127.0.0.1'),
   user: process.env.DB_USER,
@@ -20,30 +22,34 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  timezone: '+07:00'
+  timezone: '+07:00' // ตั้งค่าโซนเวลาเป็นประเทศไทย (UTC+7)
 });
 
-// Test Connection
+// ทดสอบการเชื่อมต่อฐานข้อมูล MySQL ทันทีที่เซิร์ฟเวอร์เริ่มทำงาน
 (async function testMySQL() {
   try {
     const conn = await pool.getConnection();
     console.log('Connected to MySQL:', process.env.DB_NAME);
-    conn.release();
+    conn.release(); // คืนการเชื่อมต่อกลับเข้าสู่ Pool
   } catch (err) {
     console.error('MySQL Failed:', err.message);
-    process.exit(1);
+    process.exit(1); // หากเชื่อมต่อไม่สำเร็จ ให้หยุดการทำงานของแอปพลิเคชัน
   }
 })();
 
-// ===== Authentication / Login API (ตรวจสอบรหัสผ่านด้วย bcrypt.compare) =====
+// ==========================================
+// ส่วนที่ 2: ระบบยืนยันตัวตน (Authentication / Login API)
+// ==========================================
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    // ตรวจสอบว่าผู้ใช้กรอกข้อมูลครบถ้วนหรือไม่
     if (!username || !password) {
       return res.status(400).json({ error: 'กรุณากรอก Username และ Password' });
     }
 
+    // ค้นหาข้อมูลผู้ใช้จากฐานข้อมูลตาม Username ที่ระบุ
     const [rows] = await pool.query(
       'SELECT id, username, password, name, role FROM users WHERE username = ?',
       [username]
@@ -55,12 +61,13 @@ app.post('/api/login', async (req, res) => {
 
     const user = rows[0];
 
-    // ตรวจสอบรหัสผ่านที่ส่งมาเทียบกับรหัสผ่านที่ถูก Hash ไว้ในฐานข้อมูล
+    // ตรวจสอบรหัสผ่านที่ส่งมา เทียบกับ Hash ในฐานข้อมูลด้วย bcrypt.compare
     const match = await bcrypt.compare(password, user.password);
     if (!match) {
       return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
     }
 
+    // หากรหัสผ่านถูกต้อง ส่ง Token และข้อมูลผู้ใช้กลับไป
     return res.json({
       success: true,
       token: `token-${user.id}-${Date.now()}`,
@@ -77,7 +84,9 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// ===== Register API (เข้ารหัสรหัสผ่านด้วย bcrypt.hash ก่อนบันทึก) =====
+// ==========================================
+// ส่วนที่ 3: ระบบสมัครสมาชิก (Register API)
+// ==========================================
 app.post('/api/register', async (req, res) => {
   try {
     const { username, password, name } = req.body;
@@ -86,15 +95,17 @@ app.post('/api/register', async (req, res) => {
       return res.status(400).json({ error: 'กรุณากรอก Username และ Password' });
     }
 
+    // ตรวจสอบว่ามี Username นี้ในระบบหรือยัง
     const [existing] = await pool.query('SELECT id FROM users WHERE username = ?', [username]);
     if (existing.length > 0) {
       return res.status(400).json({ error: 'Username นี้ถูกใช้งานแล้ว' });
     }
 
-    // ทำการเข้ารหัสรหัสผ่านก่อนบันทึกลง MySQL
+    // ทำการเข้ารหัสรหัสผ่าน (Hashing) ด้วย bcrypt ก่อนบันทึกลง MySQL
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+    // บันทึกข้อมูลผู้ใช้ใหม่ลงฐานข้อมูล
     const [result] = await pool.query(
       'INSERT INTO users (username, password, name, role) VALUES (?, ?, ?, ?)',
       [username, hashedPassword, name || username, 'user']
@@ -111,7 +122,10 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// ===== Orders API (ประวัติการสั่งซื้อ) =====
+// ==========================================
+// ส่วนที่ 4: จัดการข้อมูลคำสั่งซื้อ (Orders API)
+// ==========================================
+// ดึงรายการประวัติการสั่งซื้อทั้งหมด
 app.get('/api/orders', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM orders ORDER BY id DESC');
@@ -122,6 +136,7 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+// สร้างคำสั่งซื้อใหม่
 app.post('/api/orders', async (req, res) => {
   try {
     const {
@@ -136,6 +151,7 @@ app.post('/api/orders', async (req, res) => {
       order_date
     } = req.body;
 
+    // ตรวจสอบข้อมูลบังคับ (ชื่อสินค้าและเลขพัสดุ)
     if (!product_name || !tracking_no) {
       return res.status(400).json({ error: 'Product name and tracking number are required' });
     }
@@ -163,7 +179,10 @@ app.post('/api/orders', async (req, res) => {
   }
 });
 
-// ===== Products API =====
+// ==========================================
+// ส่วนที่ 5: จัดการสินค้าคงคลัง (Products / Inventory API)
+// ==========================================
+// ดึงรายการสินค้าทั้งหมด
 app.get('/api/products', async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT * FROM inventory ORDER BY id DESC');
@@ -174,9 +193,8 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// ===== Add + Edit Product =====
+// กำหนดค่าตัวแปรและฟังก์ชันช่วยเหลือสำหรับระบบจัดการสินค้า (รองรับกรณีชื่อคอลัมน์ไม่ตรงกัน)
 const TABLE = 'inventory';
-
 const ALLOWED_FIELDS = ['name', 'price', 'quantity', 'image_url'];
 
 function isUnknownColumn(err) {
@@ -198,6 +216,7 @@ function pickFields(body) {
   return fields;
 }
 
+// ฟังก์ชันเพิ่มสินค้าพร้อมระบบ Fallback (หากคอลัมน์ใดไม่มีในตาราง ระบบจะข้ามคอลัมน์นั้นอัตโนมัติ)
 async function insertWithFallback(fields) {
   let columns = Object.keys(fields);
   while (columns.length > 0) {
@@ -220,6 +239,7 @@ async function insertWithFallback(fields) {
   throw new Error('No valid columns to insert');
 }
 
+// ฟังก์ชันอัปเดตข้อมูลสินค้าพร้อมระบบ Fallback
 async function updateWithFallback(id, fields) {
   let columns = Object.keys(fields);
   while (columns.length > 0) {
@@ -242,6 +262,7 @@ async function updateWithFallback(id, fields) {
   throw new Error('No valid columns to update');
 }
 
+// API สำหรับเพิ่มสินค้าใหม่
 app.post('/api/products', async (req, res) => {
   try {
     const body = req.body || {};
@@ -266,6 +287,7 @@ app.post('/api/products', async (req, res) => {
   }
 });
 
+// API สำหรับแก้ไขข้อมูลสินค้าตาม ID
 app.put('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -298,6 +320,7 @@ app.put('/api/products/:id', async (req, res) => {
   }
 });
 
+// API สำหรับลบสินค้าตาม ID
 app.delete('/api/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -312,10 +335,14 @@ app.delete('/api/products/:id', async (req, res) => {
   }
 });
 
+// ==========================================
+// ส่วนที่ 6: Health Check และการเริ่มทำงานเซิร์ฟเวอร์
+// ==========================================
 app.get('/api', (req, res) => {
   res.send('API is running');
 });
 
+// เริ่มต้นเปิดเซิร์ฟเวอร์ให้รอรับ Request ตามพอร์ตที่กำหนด
 app.listen(port, '0.0.0.0', () => {
   console.log(`🚀 API running on port ${port}`);
 });
